@@ -3,3 +3,6 @@ venv
 .env
 .*env*
 description*
+readme.md
+*.md
+
