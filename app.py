@@ -1,11 +1,10 @@
 import os
 
 import psycopg2
-from db_setup import get_connection
+from db_setup import get_connection as con
 from fastapi import FastAPI, HTTPException
 
 app = FastAPI()
-
 """
 ADD ENDPOINTS FOR FASTAPI HERE
 Make sure to do the following:
@@ -35,4 +34,28 @@ but will have different HTTP-verbs.
 #     return {"item_id": item_id}
 
 
-# IMPLEMENT THE ACTUAL ENDPOINTS! Feel free to remove
+@app.get("/all_listings")
+def get_all_listings():
+    """
+    Fetches all active listings in database.
+    """
+    connection = con()
+    with connection:
+        cursor = connection.cursor()
+        try:
+            get_all_listings_query = """
+            SELECT *
+            FROM listings 
+            WHERE status_id = 1
+            ORDER BY start_date DESC;
+            """ 
+            cursor.execute(get_all_listings_query)
+
+            rows = cursor.fetch(get_all_listings_query)
+
+            listings = [dict(row) for row in rows]
+
+            return listings
+
+        except 
+
