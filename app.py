@@ -3,6 +3,7 @@ import os
 import psycopg2
 from db_setup import get_connection as con
 from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel
 
 app = FastAPI()
 """
@@ -39,23 +40,104 @@ def get_all_listings():
     """
     Fetches all active listings in database.
     """
-    connection = con()
-    with connection:
-        cursor = connection.cursor()
-        try:
-            get_all_listings_query = """
-            SELECT *
-            FROM listings 
-            WHERE status_id = 1
-            ORDER BY start_date DESC;
-            """ 
-            cursor.execute(get_all_listings_query)
+    conn = con()
+    cursor = conn.cursor()
+    with conn:
+        with cursor:
+            try:
+                get_all_listings_query = """
+                SELECT *
+                FROM listings 
+                WHERE status_id = 1
+                ORDER BY start_date DESC;
+                """
+                cursor.execute(get_all_listings_query)
 
-            rows = cursor.fetch(get_all_listings_query)
+                rows = cursor.fetch(get_all_listings_query)
 
-            listings = [dict(row) for row in rows]
+                listings = [dict(row) for row in rows]
 
-            return listings
+                return listings
 
-        except 
+            except Exception as e:
+                pass
 
+
+# @app.get("/")
+
+# @app.get("/")
+# @app.get("/")
+# @app.get("/")
+
+
+@app.post("/users")
+def register_user(
+    username: str,
+    email: str,
+    password: str,
+    social_security_number: str,
+    first_name: str,
+    last_name: str,
+    city_id: int,
+    address: str,
+    postal_code: str,
+    phone_number: str,
+):
+    """
+    Creates a new user in database.
+    """
+    with con() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                """
+                                INSERT INTO users(
+                                username,
+                                email,
+                                password_hash,
+                                social_security_number,
+                                first_name,
+                                last_name,
+                                city_id,
+                                address,
+                                postal_code,
+                                phone_number
+                                )
+                                VALUES(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                                RETURNING user_id, username, email, first_name, last_name, city_id, address, postal_code, phone_number, created_at
+                                """,
+                (
+                    username,
+                    email,
+                    password,
+                    social_security_number,
+                    first_name,
+                    last_name,
+                    city_id,
+                    address,
+                    postal_code,
+                    phone_number,
+                ),
+            )
+
+
+@app.post("/city")
+def add_city(city_name: str):
+    with con() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                """
+                INSERT INTO cities(city_name)
+                VALUES(%s)
+                RETURNING city_name
+                """,
+                (city_name,),
+            )
+            result = cursor.fetchone()
+            conn.commit()
+
+            return result[0]
+
+
+# @app.post("/")
+# @app.post("/")
+# @app.post("/")
