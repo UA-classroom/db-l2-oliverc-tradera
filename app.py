@@ -453,33 +453,20 @@ def delete_listing(listing_id: int):
     """
     Updates a listings.
     """
-    with con() as conn:
-        with conn.cursor(cursor_factory=RealDictCursor) as cursor:
-            try:
-                cursor.execute(
-                    """
-                            DELETE FROM listings
-                            WHERE listing_id = %s
-                            RETURNING listing_id, title
-""",
-                    (listing_id),
-                )
-                deleted_listing = cursor.fetchone()
-                if not deleted_listing:
-                    raise HTTPException(
-                        status_code=404, detail="Couldn't find the requested listing."
-                    )
-                conn.commit()
-                return deleted_listing
-            except ForeignKeyViolation:
-                conn.rollback()
-                raise HTTPException(
-                    status_code=400,
-                    detail="Cannot delete listing, has active relations.",
-                )
-            except DataError:
-                conn.rollback()
-                raise HTTPException(status_code=400, detail="Invalid data format/type.")
+    try:
+        deleted_listing = db.delete_listing(listing_id)
+        if not deleted_listing:
+            raise HTTPException(
+                status_code=404, detail="Couldn't find the requested listing."
+            )
+        return deleted_listing
+    except ForeignKeyViolation:
+        raise HTTPException(
+            status_code=400,
+            detail="Cannot delete listing, has active relations.",
+        )
+    except DataError:
+        raise HTTPException(status_code=400, detail="Invalid data format/type.")
 
 
 @app.delete("/users/{user_id}")
@@ -487,33 +474,20 @@ def delete_user(user_id: int):
     """
     Deletes a user.
     """
-    with con() as conn:
-        with conn.cursor(cursor_factory=RealDictCursor) as cursor:
-            try:
-                cursor.execute(
-                    """
-                            DELETE FROM users
-                            WHERE user_id = %s
-                            RETURNING user_id, username
-""",
-                    (user_id),
-                )
-                deleted_user = cursor.fetchone()
-                if not deleted_user:
-                    raise HTTPException(
-                        status_code=404, detail="Couldn't find the requested user."
-                    )
-                conn.commit()
-                return deleted_user
-            except ForeignKeyViolation:
-                conn.rollback()
-                raise HTTPException(
-                    status_code=400,
-                    detail="Cannot delete user, has active relations.",
-                )
-            except DataError:
-                conn.rollback()
-                raise HTTPException(status_code=400, detail="Invalid data format/type.")
+    try:
+        deleted_user = db.delete_user(user_id)
+        if not deleted_user:
+            raise HTTPException(
+                status_code=404, detail="Couldn't find the requested user."
+            )
+        return deleted_user
+    except ForeignKeyViolation:
+        raise HTTPException(
+            status_code=400,
+            detail="Cannot delete user, has active relations.",
+        )
+    except DataError:
+        raise HTTPException(status_code=400, detail="Invalid data format/type.")
 
 
 @app.delete("/messages/{message_id}")
@@ -521,33 +495,20 @@ def delete_message(message_id: int):
     """
     Deletes a message.
     """
-    with con() as conn:
-        with conn.cursor(cursor_factory=RealDictCursor) as cursor:
-            try:
-                cursor.execute(
-                    """
-                            DELETE FROM messages
-                            WHERE message_id = %s
-                            RETURNING message_id, message_text
-""",
-                    (message_id),
-                )
-                deleted_message = cursor.fetchone()
-                if not deleted_message:
-                    raise HTTPException(
-                        status_code=404, detail="Couldn't find the requested message."
-                    )
-                conn.commit()
-                return deleted_message
-            except ForeignKeyViolation:
-                conn.rollback()
-                raise HTTPException(
-                    status_code=400,
-                    detail="Cannot delete message, has active relations.",
-                )
-            except DataError:
-                conn.rollback()
-                raise HTTPException(status_code=400, detail="Invalid data format/type.")
+    try:
+        deleted_message = db.delete_message(message_id)
+        if not deleted_message:
+            raise HTTPException(
+                status_code=404, detail="Couldn't find the requested message."
+            )
+        return deleted_message
+    except ForeignKeyViolation:
+        raise HTTPException(
+            status_code=400,
+            detail="Cannot delete message, has active relations.",
+        )
+    except DataError:
+        raise HTTPException(status_code=400, detail="Invalid data format/type.")
 
 
 @app.delete("/payment_methods/{method_id}")
@@ -555,28 +516,16 @@ def delete_payment_method(method_id: int):
     """
     Deletes a payment_method.
     """
-    with con() as conn:
-        with conn.cursor(cursor_factory=RealDictCursor) as cursor:
-            try:
-                cursor.execute(
-                    """
-                            DELETE FROM payment_methods
-                            WHERE method_id = %s
-                            RETURNING method_id, method_name
-""",
-                    (method_id),
-                )
-                deleted_payment_method = cursor.fetchone()
-                if not deleted_payment_method:
-                    raise HTTPException(
-                        status_code=404,
-                        detail="Couldn't find the requested payment_method.",
-                    )
-                conn.commit()
-                return deleted_payment_method
-            except DataError:
-                conn.rollback()
-                raise HTTPException(status_code=400, detail="Invalid data format/type.")
+    try:
+        deleted_payment_method = db.delete_payment_method(method_id)
+        if not deleted_payment_method:
+            raise HTTPException(
+                status_code=404,
+                detail="Couldn't find the requested payment_method.",
+            )
+        return deleted_payment_method
+    except DataError:
+        raise HTTPException(status_code=400, detail="Invalid data format/type.")
 
 
 @app.delete("/orders/{order_id}")
@@ -584,33 +533,20 @@ def delete_order(order_id: int):
     """
     Deletes a order.
     """
-    with con() as conn:
-        with conn.cursor(cursor_factory=RealDictCursor) as cursor:
-            try:
-                cursor.execute(
-                    """
-                            DELETE FROM orders
-                            WHERE order_id = %s
-                            RETURNING order_id, order_number
-""",
-                    (order_id),
-                )
-                deleted_order = cursor.fetchone()
-                if not deleted_order:
-                    raise HTTPException(
-                        status_code=404, detail="Couldn't find the requested order."
-                    )
-                conn.commit()
-                return deleted_order
-            except ForeignKeyViolation:
-                conn.rollback()
-                raise HTTPException(
-                    status_code=400,
-                    detail="Cannot delete order, has active relations.",
-                )
-            except DataError:
-                conn.rollback()
-                raise HTTPException(status_code=400, detail="Invalid data format/type.")
+    try:
+        deleted_order = db.delete_order(order_id)
+        if not deleted_order:
+            raise HTTPException(
+                status_code=404, detail="Couldn't find the requested order."
+            )
+        return deleted_order
+    except ForeignKeyViolation:
+        raise HTTPException(
+            status_code=400,
+            detail="Cannot delete order, has active relations.",
+        )
+    except DataError:
+        raise HTTPException(status_code=400, detail="Invalid data format/type.")
 
 
 @app.patch("/users/{user_id}")
@@ -633,77 +569,39 @@ def partial_update_user(
     """
     Partially updates a user based on the input.
     """
-    with con() as conn:
-        with conn.cursor(cursor_factory=RealDictCursor) as cursor:
-            updated_values = []
-            values = []
+    try:
+        updated_user = db.partial_update_user(
+            user_id,
+            username,
+            email,
+            first_name,
+            last_name,
+            phone_number,
+            address,
+            postal_code,
+            language_id,
+            currency_id,
+            city_id,
+            profile_picture_id,
+            translation_on,
+            vacation_mode,
+        )
 
-            if username:
-                updated_values.append("username = %s")
-                values.append(username)
-            if email:
-                updated_values.append("email = %s")
-                values.append(email)
-            if first_name:
-                updated_values.append("first_name = %s")
-                values.append(first_name)
-            if last_name:
-                updated_values.append("last_name = %s")
-                values.append(last_name)
-            if phone_number:
-                updated_values.append("phone_number = %s")
-                values.append(phone_number)
-            if address:
-                updated_values.append("address = %s")
-                values.append(address)
-            if postal_code:
-                updated_values.append("postal_code = %s")
-                values.append(postal_code)
-            if language_id:
-                updated_values.append("language_id = %s")
-                values.append(language_id)
-            if currency_id:
-                updated_values.append("currency_id = %s")
-                values.append(currency_id)
-            if city_id:
-                updated_values.append("city_id = %s")
-                values.append(city_id)
-            if profile_picture_id:
-                updated_values.append("profile_picture_id = %s")
-                values.append(profile_picture_id)
-            if translation_on is not None:
-                updated_values.append("translation_on = %s")
-                values.append(translation_on)
-            if vacation_mode is not None:
-                updated_values.append("vacation_mode = %s")
-                values.append(vacation_mode)
+        if updated_user is None:
+            raise HTTPException(status_code=400, detail="No input was given.")
+        if not updated_user:
+            raise HTTPException(status_code=404, detail="Couldn't find user.")
 
-            if not updated_values:
-                raise HTTPException(status_code=400, detail="No fields updated.")
-
-            values.append(user_id)
-
-            query = f"UPDATE users SET {', '.join(updated_values)} WHERE user_id = %s"
-            try:
-                cursor.execute(query, values)
-                updated_user = cursor.fetchone()
-                if not updated_user:
-                    raise HTTPException(status_code=404, detail="Couldn't find user.")
-                conn.commit()
-
-                return updated_user
-            except UniqueViolation:
-                conn.rollback()
-                raise HTTPException(
-                    status_code=409,
-                    detail="username, email or phone_number already exists.",
-                )
-            except ForeignKeyViolation:
-                conn.rollback()
-                raise HTTPException(
-                    status_code=400,
-                    detail="Invalid 'language_id', 'currency_id', 'city_id' or 'profile_picture_id'.",
-                )
-            except DataError:
-                conn.rollback()
-                raise HTTPException(status_code=400, detail="Invalid data format/type.")
+        return updated_user
+    except UniqueViolation:
+        raise HTTPException(
+            status_code=409,
+            detail="username, email or phone_number already exists.",
+        )
+    except ForeignKeyViolation:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid 'language_id', 'currency_id', 'city_id' or 'profile_picture_id'.",
+        )
+    except DataError:
+        raise HTTPException(status_code=400, detail="Invalid data format/type.")

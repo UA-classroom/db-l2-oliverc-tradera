@@ -406,7 +406,7 @@ def update_listing_status(listing_id: int, status_id: int):
     with con() as conn:
         with conn.cursor(cursor_factory=RealDictCursor) as cursor:
             cursor.execute(
-                    """
+                """
                     UPDATE listings
                     SET 
                     status_id = %s,
@@ -426,20 +426,20 @@ def update_password(password_hash: str, user_id: int):
     """
     with con() as conn:
         with conn.cursor(cursor_factory=RealDictCursor) as cursor:
-                cursor.execute(
-                    """
+            cursor.execute(
+                """
                     UPDATE users
                     SET 
                     password_hash = %s
                     WHERE user_id = %s
                     RETURNING user_id
                     """,
-                    (password_hash, user_id),
-                )
-                updated_user = cursor.fetchone()
-                conn.commit()
-                return updated_user
-        
+                (password_hash, user_id),
+            )
+            updated_user = cursor.fetchone()
+            conn.commit()
+            return updated_user
+
 
 def update_order(
     shipping_option_id: int,
@@ -456,8 +456,8 @@ def update_order(
     """
     with con() as conn:
         with conn.cursor(cursor_factory=RealDictCursor) as cursor:
-                cursor.execute(
-                    """
+            cursor.execute(
+                """
                     UPDATE orders
                     SET
                         shipping_option_id = %s
@@ -470,17 +470,186 @@ def update_order(
                     WHERE order_id = %s 
                     RETURNING *
                     """,
-                    (
-                        shipping_option_id,
-                        order_status_id,
-                        shipping_address,
-                        shipping_city,
-                        shipping_postal_code,
-                        final_price,
-                        discount_amount,
-                        order_id,
-                    ),
-                )
-                updated_order = cursor.fetchone()
-                conn.commit()
-                return updated_order 
+                (
+                    shipping_option_id,
+                    order_status_id,
+                    shipping_address,
+                    shipping_city,
+                    shipping_postal_code,
+                    final_price,
+                    discount_amount,
+                    order_id,
+                ),
+            )
+            updated_order = cursor.fetchone()
+            conn.commit()
+            return updated_order
+
+
+def delete_listing(listing_id: int):
+    """
+    Updates a listings.
+    """
+    with con() as conn:
+        with conn.cursor(cursor_factory=RealDictCursor) as cursor:
+            cursor.execute(
+                """
+                    DELETE FROM listings
+                    WHERE listing_id = %s
+                    RETURNING listing_id, title
+                    """,
+                (listing_id),
+            )
+            deleted_listing = cursor.fetchone()
+            conn.commit()
+            return deleted_listing
+
+
+def delete_user(user_id: int):
+    """
+    Deletes a user.
+    """
+    with con() as conn:
+        with conn.cursor(cursor_factory=RealDictCursor) as cursor:
+            cursor.execute(
+                """
+                    DELETE FROM users
+                    WHERE user_id = %s
+                    RETURNING user_id, username
+                    """,
+                (user_id),
+            )
+            deleted_user = cursor.fetchone()
+            conn.commit()
+            return deleted_user
+
+
+def delete_message(message_id: int):
+    """
+    Deletes a message.
+    """
+    with con() as conn:
+        with conn.cursor(cursor_factory=RealDictCursor) as cursor:
+            cursor.execute(
+                """
+                    DELETE FROM messages
+                    WHERE message_id = %s
+                    RETURNING message_id, message_text
+                    """,
+                (message_id),
+            )
+            deleted_message = cursor.fetchone()
+            conn.commit()
+            return deleted_message
+
+
+def delete_payment_method(method_id: int):
+    """
+    Deletes a payment_method.
+    """
+    with con() as conn:
+        with conn.cursor(cursor_factory=RealDictCursor) as cursor:
+            cursor.execute(
+                """
+                    DELETE FROM payment_methods
+                    WHERE method_id = %s
+                    RETURNING method_id, method_name
+                    """,
+                (method_id),
+            )
+            deleted_payment_method = cursor.fetchone()
+            conn.commit()
+            return deleted_payment_method
+
+
+def delete_order(order_id: int):
+    """
+    Deletes a order.
+    """
+    with con() as conn:
+        with conn.cursor(cursor_factory=RealDictCursor) as cursor:
+            cursor.execute(
+                """
+                    DELETE FROM orders
+                    WHERE order_id = %s
+                    RETURNING order_id, order_number
+                    """,
+                (order_id),
+            )
+            deleted_order = cursor.fetchone()
+            conn.commit()
+            return deleted_order
+
+
+def partial_update_user(
+    user_id: int,
+    username: str = None,
+    email: str = None,
+    first_name: str = None,
+    last_name: str = None,
+    phone_number: str = None,
+    address: str = None,
+    postal_code: str = None,
+    language_id: int = None,
+    currency_id: int = None,
+    city_id: int = None,
+    profile_picture_id: int = None,
+    translation_on: bool = None,
+    vacation_mode: bool = None,
+):
+    """
+    Partially updates a user based on the input.
+    """
+    with con() as conn:
+        with conn.cursor(cursor_factory=RealDictCursor) as cursor:
+            updated_values = []
+            values = []
+
+            if username:
+                updated_values.append("username = %s")
+                values.append(username)
+            if email:
+                updated_values.append("email = %s")
+                values.append(email)
+            if first_name:
+                updated_values.append("first_name = %s")
+                values.append(first_name)
+            if last_name:
+                updated_values.append("last_name = %s")
+                values.append(last_name)
+            if phone_number:
+                updated_values.append("phone_number = %s")
+                values.append(phone_number)
+            if address:
+                updated_values.append("address = %s")
+                values.append(address)
+            if postal_code:
+                updated_values.append("postal_code = %s")
+                values.append(postal_code)
+            if language_id:
+                updated_values.append("language_id = %s")
+                values.append(language_id)
+            if currency_id:
+                updated_values.append("currency_id = %s")
+                values.append(currency_id)
+            if city_id:
+                updated_values.append("city_id = %s")
+                values.append(city_id)
+            if profile_picture_id:
+                updated_values.append("profile_picture_id = %s")
+                values.append(profile_picture_id)
+            if translation_on is not None:
+                updated_values.append("translation_on = %s")
+                values.append(translation_on)
+            if vacation_mode is not None:
+                updated_values.append("vacation_mode = %s")
+                values.append(vacation_mode)
+
+            values.append(user_id)
+
+            query = f"UPDATE users SET {', '.join(updated_values)} WHERE user_id = %s"
+            cursor.execute(query, values)
+            updated_user = cursor.fetchone()
+            conn.commit()
+
+            return updated_user
