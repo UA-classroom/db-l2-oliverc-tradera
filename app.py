@@ -3,6 +3,13 @@ import os
 import psycopg2
 from db_setup import get_connection as con
 from fastapi import FastAPI, HTTPException
+from psycopg2.errors import (
+    CheckViolation,
+    DataError,
+    ForeignKeyViolation,
+    NotNullViolation,
+    UniqueViolation,
+)
 from psycopg2.extras import RealDictCursor
 from pydantic import BaseModel
 
@@ -52,14 +59,20 @@ def get_all_listings():
                 """
                 cursor.execute(get_all_listings_query)
 
-                rows = cursor.fetch(get_all_listings_query)
-
-                listings = [dict(row) for row in rows]
+                listings = cursor.fetchall()
+                if not listings:
+                    raise HTTPException(
+                        status_code=404, detail="No active listings found."
+                    )
 
                 return listings
 
-            except Exception as e:
-                pass
+            except psycopg2.DatabaseError:
+                raise HTTPException(status_code=500, detail="Database error occured.")
+            except psycopg2.OperationalError:
+                raise HTTPException(
+                    status_code=503, detail="No database connection found."
+                )
 
 
 @app.get("/all_users")
@@ -69,23 +82,58 @@ def get_all_users():
     """
     with con() as conn:
         with conn.cursor(cursor_factory=RealDictCursor) as cursor:
-            cursor.execute(
-                """
-                SELECT * 
-                FROM users
-                ORDER BY created_at DESC;
-                """
-            )
-            users = cursor.fetchall()
-            return users
+            try:
+                cursor.execute(
+                    """
+                    SELECT * 
+                    FROM users
+                    ORDER BY created_at DESC;
+                    """
+                )
+                users = cursor.fetchall()
+                return users
+            except psycopg2.DatabaseError:
+                raise HTTPException(status_code=500, detail="Database error occured.")
+            except psycopg2.OperationalError:
+                raise HTTPException(
+                    status_code=503, detail="No database connection found."
+                )
+
+
+@app.get("/user_by_id")
+def get_user_by_id(user_id: int):
+    with con() as conn:
+        with conn.cursor(cursor_factory=RealDictCursor) as cursor:
+            try:
+                cursor.execute(
+                    """
+
+                                SELECT * 
+                                FROM users
+                                WHERE user_id = %s
+                                """,
+                    (user_id,),
+                )
+
+                user = cursor.fetchone()
+                if user is None:
+                    raise HTTPException(
+                        status_code=404, detail="No user found with given 'user_id'."
+                    )
+                return user
+            except psycopg2.DatabaseError:
+                raise HTTPException(status_code=500, detail="Database error occured.")
+            except psycopg2.OperationalError:
+                raise HTTPException(
+                    status_code=503, detail="No database connection found."
+                )
 
 
 # @app.get("/")
 # @app.get("/")
-# @app.get("/")
 
 
-@app.post("/users")
+@app.post("/new_user")
 def register_user(
     username: str,
     email: str,
@@ -102,7 +150,7 @@ def register_user(
     Creates a new user in database.
     """
     with con() as conn:
-        with conn.cursor() as cursor:
+        with conn.cursor(cursor_factory=RealDictCursor) as cursor:
             try:
                 cursor.execute(
                     """
@@ -135,30 +183,114 @@ def register_user(
                     ),
                 )
                 new_user = cursor.fetchone()
+                if not new_user:
+                    conn.rollback()
+                    raise HTTPException(
+                        status_code=422,
+                        detail="Failed to create new listing, data provided is invalid.",
+                    )
                 conn.commit()
                 return new_user
-            except Exception as e:
-                pass
+            except UniqueViolation:
+                conn.rollback()
+                raise HTTPException(
+                    status_code=409, detail="Listing already exists with same info."
+                )
+            except ForeignKeyViolation:
+                conn.rollback()
+                raise HTTPException(
+                    status_code=400, detail="Invalid 'seller_id' or 'listing_type_id'"
+                )
+            except DataError:
+                conn.rollback()
+                raise HTTPException(status_code=400, detail="Invalid data format/type.")
 
 
-@app.post("/city")
+@app.post("/new_city")
 def add_city(city_name: str):
     with con() as conn:
-        with conn.cursor() as cursor:
-            cursor.execute(
-                """
-                INSERT INTO cities(city_name)
-                VALUES(%s)
-                RETURNING city_name
-                """,
-                (city_name,),
-            )
-            result = cursor.fetchone()
-            conn.commit()
+        with conn.cursor(cursor_factory=RealDictCursor) as cursor:
+            try:
+                cursor.execute(
+                    """
+                    INSERT INTO cities(city_name)
+                    VALUES(%s)
+                    RETURNING city_name
+                    """,
+                    (city_name,),
+                )
+                new_city = cursor.fetchone()
+                conn.commit()
 
-            return result[0]
+                return new_city
+            except UniqueViolation:
+                conn.rollback()
+                raise HTTPException(status_code=409, detail="City already exists.")
 
 
-# @app.post("/")
+@app.post("/new_listing")
+def create_listing(
+    seller_id: int,
+    listing_type_id: int,
+    product_name: str,
+    title: str,
+    description: str,
+    starting_price: int,
+    pick_up_available: bool,
+    end_date: str,
+):
+    with con() as conn:
+        with conn.cursor(cursor_factory=RealDictCursor) as cursor:
+            try:
+                cursor.execute(
+                    """
+                            INSERT INTO listings(
+                                    seller_id,
+                                    listing_type_id,
+                                    product_name,
+                                    title,
+                                    description,
+                                    starting_price,
+                                    pick_up_available,
+                                    end_date   
+                                    )
+                                    VALUES(%s, %s, %s, %s, %s, %s, %s, %s)
+                                    RETURNING *
+                                        """,
+                    (
+                        seller_id,
+                        listing_type_id,
+                        product_name,
+                        title,
+                        description,
+                        starting_price,
+                        pick_up_available,
+                        end_date,
+                    ),
+                )
+                new_listing = cursor.fetchone()
+                if not new_listing:
+                    conn.rollback()
+                    raise HTTPException(
+                        status_code=422,
+                        detail="Failed to create new listing, data provided is invalid.",
+                    )
+                conn.commit()
+                return new_listing
+            except UniqueViolation:
+                conn.rollback()
+                raise HTTPException(
+                    status_code=409, detail="Listing already exists with same info."
+                )
+            except ForeignKeyViolation:
+                conn.rollback()
+                raise HTTPException(
+                    status_code=400, detail="Invalid 'seller_id' or 'listing_type_id'"
+                )
+            except DataError:
+                conn.rollback()
+                raise HTTPException(status_code=400, detail="Invalid data format/type.")
+
+
 # @app.post("/")
 # @app.post("/")
