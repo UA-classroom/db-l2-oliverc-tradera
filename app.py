@@ -43,7 +43,7 @@ but will have different HTTP-verbs.
 #     return {"item_id": item_id}
 
 
-@app.get("/all_listings")
+@app.get("/listings")
 def get_all_listings():
     """
     Fetches all active listings in database.
@@ -75,7 +75,7 @@ def get_all_listings():
                 )
 
 
-@app.get("/all_users")
+@app.get("/users")
 def get_all_users():
     """
     Fetches all users in database.
@@ -100,7 +100,7 @@ def get_all_users():
                 )
 
 
-@app.get("/user_by_id")
+@app.get("/users/{user_id}")
 def get_user_by_id(user_id: int):
     with con() as conn:
         with conn.cursor(cursor_factory=RealDictCursor) as cursor:
@@ -129,8 +129,65 @@ def get_user_by_id(user_id: int):
                 )
 
 
-# @app.get("/")
-# @app.get("/")
+@app.get("/listings/{listing_id}")
+def get_listing_by_id(listing_id: int):
+    with con() as conn:
+        with conn.cursor(cursor_factory=RealDictCursor) as cursor:
+            try:
+                cursor.execute(
+                    """
+
+                                SELECT * 
+                                FROM listings
+                                WHERE listing_id = %s
+                                """,
+                    (listing_id,),
+                )
+
+                listing = cursor.fetchone()
+                if listing is None:
+                    raise HTTPException(
+                        status_code=404,
+                        detail="No listing found with given 'listing_id'.",
+                    )
+                return listing
+            except psycopg2.DatabaseError:
+                raise HTTPException(status_code=500, detail="Database error occured.")
+            except psycopg2.OperationalError:
+                raise HTTPException(
+                    status_code=503, detail="No database connection found."
+                )
+
+
+@app.get("/users/{user_id}/listings")
+def get_all_user_listings(seller_id: int):
+    """
+    Fetches all listings from one user.
+    """
+    with con() as conn:
+        with conn.cursor(cursor_factory=RealDictCursor) as cursor:
+            try:
+                cursor.execute(
+                    """
+                            SELECT *
+                            FROM listings
+                            WHERE seller_id = %s
+""",
+                    (seller_id,),
+                )
+                listings = cursor.fetchall()
+                if not listings:
+                    raise HTTPException(
+                        status_code=404,
+                        detail="Provided user does not have any listings.",
+                    )
+                return listings
+            except psycopg2.DatabaseError:
+                raise HTTPException(status_code=500, detail="Database error occured.")
+            except psycopg2.OperationalError:
+                raise HTTPException(
+                    status_code=503, detail="No database connection found."
+                )
 
 
 @app.post("/new_user")
@@ -208,6 +265,9 @@ def register_user(
 
 @app.post("/new_city")
 def add_city(city_name: str):
+    """
+    Creates a new city in database.
+    """
     with con() as conn:
         with conn.cursor(cursor_factory=RealDictCursor) as cursor:
             try:
@@ -239,6 +299,9 @@ def create_listing(
     pick_up_available: bool,
     end_date: str,
 ):
+    """
+    Creates a new listing in database.
+    """
     with con() as conn:
         with conn.cursor(cursor_factory=RealDictCursor) as cursor:
             try:
@@ -292,5 +355,118 @@ def create_listing(
                 raise HTTPException(status_code=400, detail="Invalid data format/type.")
 
 
-# @app.post("/")
-# @app.post("/")
+@app.post("/bids")
+def create_bid(
+    listing_id: int,
+    user_id: int,
+    bid_amount: int,
+    is_auto: bool = False,
+    max_auto_bid: int = None,
+):
+    """
+    Creates a new bid in database.
+    """
+    with con() as conn:
+        with conn.cursor(cursor_factory=RealDictCursor) as cursor:
+            try:
+                cursor.execute(
+                    """
+                            INSERT INTO bids(
+                                listing_id,
+                                user_id,
+                                bid_amount,
+                                is_auto,
+                                max_auto_bid
+)
+                                VALUES(%s, %s, %s, %s, %s)
+                                RETURNING *
+""",
+                    (listing_id, user_id, bid_amount, is_auto, max_auto_bid),
+                )
+                new_bid = cursor.fetchone()
+                if not new_bid:
+                    conn.rollback()
+                    raise HTTPException(
+                        status_code=422,
+                        detail="Failed to create new bid, data provided is invalid.",
+                    )
+                conn.commit()
+                return new_bid
+            except UniqueViolation:
+                conn.rollback()
+                raise HTTPException(
+                    status_code=409, detail="Bidding already exists with same info."
+                )
+            except ForeignKeyViolation:
+                conn.rollback()
+                raise HTTPException(
+                    status_code=400, detail="Invalid 'listing_id' or 'user_id'"
+                )
+            except DataError:
+                conn.rollback()
+                raise HTTPException(status_code=400, detail="Invalid data format/type.")
+
+
+@app.post("/reviews")
+def create_review(
+    listing_id: int,
+    reviewer_id: int,
+    reviewee_id: int,
+    review_text: str,
+    rating: int,
+    is_negative: bool = False,
+    is_positive: bool = False,
+):
+    """
+    Creates a new review in database.
+    """
+    with con() as conn:
+        with conn.cursor(cursor_factory=RealDictCursor) as cursor:
+            try:
+                cursor.execute(
+                    """
+                            INSERT INTO reviews(
+                                listing_id,
+                                reviewer_id,
+                                reviewee_id,
+                                is_negative,
+                                is_positive,
+                                review_text,
+                                rating
+                                )
+                                VALUES(%s, %s, %s, %s, %s, %s, %s)
+                                RETURNING *
+""",
+                    (
+                        listing_id,
+                        reviewer_id,
+                        reviewee_id,
+                        is_negative,
+                        is_positive,
+                        review_text,
+                        rating,
+                    ),
+                )
+                new_review = cursor.fetchone()
+                if not new_review:
+                    conn.rollback()
+                    raise HTTPException(
+                        status_code=422,
+                        detail="Failed to create review, data provided is invalid.",
+                    )
+                conn.commit()
+                return new_review
+            except UniqueViolation:
+                conn.rollback()
+                raise HTTPException(
+                    status_code=409, detail="Review already exists with same info."
+                )
+            except ForeignKeyViolation:
+                conn.rollback()
+                raise HTTPException(
+                    status_code=400,
+                    detail="Invalid 'listing_id', 'reviewee_id' or 'reviewer_id'.",
+                )
+            except DataError:
+                conn.rollback()
+                raise HTTPException(status_code=400, detail="Invalid data format/type.")
