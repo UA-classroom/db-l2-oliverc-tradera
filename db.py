@@ -296,3 +296,191 @@ def create_review(
             new_review = cursor.fetchone()
             conn.commit()
             return new_review
+
+
+def update_listing(
+    listing_type_id: int,
+    product_name: str,
+    title: str,
+    description: str,
+    starting_price: float,
+    pick_up_available: bool,
+    end_date: str,
+    listing_id: int,
+):
+    """
+    Updates a listing.
+    """
+    with con() as conn:
+        with conn.cursor(cursor_factory=RealDictCursor) as cursor:
+            cursor.execute(
+                """
+                            UPDATE listings
+                            SET 
+                                listing_type_id = %s,
+                                product_name = %s, 
+                                title = %s, 
+                                description = %s,
+                                starting_price = %s,
+                                pick_up_available = %s,
+                                end_date = %s
+                                WHERE listing_id = %s 
+                                RETURNING *
+    """,
+                (
+                    listing_type_id,
+                    product_name,
+                    title,
+                    description,
+                    starting_price,
+                    pick_up_available,
+                    end_date,
+                    listing_id,
+                ),
+            )
+
+            updated_listing = cursor.fetchone()
+            conn.commit()
+            return updated_listing
+
+
+def update_user(
+    language_id: int,
+    currency_id: int,
+    profile_picture_id: int,
+    city_id: int,
+    username: str,
+    email: str,
+    first_name: str,
+    last_name: str,
+    phone_number: str,
+    address: str,
+    postal_code: str,
+    user_id: int,
+):
+    """
+    Updates a user.
+    """
+    with con() as conn:
+        with conn.cursor(cursor_factory=RealDictCursor) as cursor:
+            cursor.execute(
+                """
+                    UPDATE users
+                    SET 
+                    language_id = %s,
+                    currency_id = %s,
+                    profile_picture_id = %s,
+                    city_id = %s,
+                    
+                    username = %s,
+                    email = %s,
+                    first_name = %s,
+                    last_name = %s,
+                    phone_number = %s,
+                    address = %s,
+                    postal_code = %s,
+                    WHERE user_id = %s
+                    RETURNING *
+                    """,
+                (
+                    language_id,
+                    currency_id,
+                    profile_picture_id,
+                    city_id,
+                    username,
+                    email,
+                    first_name,
+                    last_name,
+                    phone_number,
+                    address,
+                    postal_code,
+                    user_id,
+                ),
+            )
+            updated_user = cursor.fetchone()
+            conn.commit()
+            return updated_user
+
+
+def update_listing_status(listing_id: int, status_id: int):
+    with con() as conn:
+        with conn.cursor(cursor_factory=RealDictCursor) as cursor:
+            cursor.execute(
+                    """
+                    UPDATE listings
+                    SET 
+                    status_id = %s,
+                    WHERE listing_id = %s
+                    RETURNING *
+                    """,
+                (status_id, listing_id),
+            )
+            updated_status = cursor.fetchone()
+            conn.commit()
+            return updated_status
+
+
+def update_password(password_hash: str, user_id: int):
+    """
+    Updates a users password.
+    """
+    with con() as conn:
+        with conn.cursor(cursor_factory=RealDictCursor) as cursor:
+                cursor.execute(
+                    """
+                    UPDATE users
+                    SET 
+                    password_hash = %s
+                    WHERE user_id = %s
+                    RETURNING user_id
+                    """,
+                    (password_hash, user_id),
+                )
+                updated_user = cursor.fetchone()
+                conn.commit()
+                return updated_user
+        
+
+def update_order(
+    shipping_option_id: int,
+    order_status_id: int,
+    shipping_address: str,
+    shipping_city: str,
+    shipping_postal_code: str,
+    final_price: float,
+    discount_amount: float,
+    order_id: int,
+):
+    """
+    Updates a order.
+    """
+    with con() as conn:
+        with conn.cursor(cursor_factory=RealDictCursor) as cursor:
+                cursor.execute(
+                    """
+                    UPDATE orders
+                    SET
+                        shipping_option_id = %s
+                        order_status_id = %s
+                        shipping_address = %s
+                        shipping_city = %s
+                        shipping_postal_code = %s
+                        final_price = %s
+                        discount_amount = %s
+                    WHERE order_id = %s 
+                    RETURNING *
+                    """,
+                    (
+                        shipping_option_id,
+                        order_status_id,
+                        shipping_address,
+                        shipping_city,
+                        shipping_postal_code,
+                        final_price,
+                        discount_amount,
+                        order_id,
+                    ),
+                )
+                updated_order = cursor.fetchone()
+                conn.commit()
+                return updated_order 

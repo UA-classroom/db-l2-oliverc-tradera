@@ -289,57 +289,34 @@ def update_listing(
     """
     Updates a listing.
     """
-    with con() as conn:
-        with conn.cursor(cursor_factory=RealDictCursor) as cursor:
-            try:
-                cursor.execute(
-                    """
-                            UPDATE listings
-                            SET 
-                                listing_type_id = %s,
-                                product_name = %s, 
-                                title = %s, 
-                                description = %s,
-                                starting_price = %s,
-                                pick_up_available = %s,
-                                end_date = %s
-                                WHERE listing_id = %s 
-                                RETURNING *
-    """,
-                    (
-                        listing_type_id,
-                        product_name,
-                        title,
-                        description,
-                        starting_price,
-                        pick_up_available,
-                        end_date,
-                        listing_id,
-                    ),
-                )
+    try:
+        updated_listing = db.update_listing(
+            listing_type_id,
+            product_name,
+            title,
+            description,
+            starting_price,
+            pick_up_available,
+            end_date,
+            listing_id,
+        )
+        if not updated_listing:
+            raise HTTPException(
+                status_code=404, detail="Couldn't find requested listing."
+            )
 
-                updated_listing = cursor.fetchone()
-                if not updated_listing:
-                    raise HTTPException(
-                        status_code=404, detail="Couldn't find requested listing."
-                    )
-                conn.commit()
-
-                return updated_listing
-            except UniqueViolation:
-                conn.rollback()
-                raise HTTPException(
-                    status_code=409, detail="Listing already exists with same info."
-                )
-            except ForeignKeyViolation:
-                conn.rollback()
-                raise HTTPException(
-                    status_code=400,
-                    detail="Invalid 'listing_type_id' or 'status_id'.",
-                )
-            except DataError:
-                conn.rollback()
-                raise HTTPException(status_code=400, detail="Invalid data format/type.")
+        return updated_listing
+    except UniqueViolation:
+        raise HTTPException(
+            status_code=409, detail="Listing already exists with same info."
+        )
+    except ForeignKeyViolation:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid 'listing_type_id' or 'status_id'.",
+        )
+    except DataError:
+        raise HTTPException(status_code=400, detail="Invalid data format/type.")
 
 
 @app.put("/users/{user_id}")
@@ -355,96 +332,54 @@ def update_user(
     phone_number: str,
     address: str,
     postal_code: str,
+    user_id,
 ):
     """
     Updates a user.
     """
-    with con() as conn:
-        with conn.cursor(cursor_factory=RealDictCursor) as cursor:
-            try:
-                cursor.execute(
-                    """
-                            UPDATE users
-                            SET 
-                            language_id = %s,
-                            currency_id = %s,
-                            profile_picture_id = %s,
-                            city_id = %s,
-                            
-                            username = %s,
-                            email = %s,
-                            first_name = %s,
-                            last_name = %s,
-                            phone_number = %s,
-                            address = %s,
-                            postal_code = %s,
-                            WHERE user_id = %s
-                            RETURNING *
-""",
-                    (
-                        language_id,
-                        currency_id,
-                        profile_picture_id,
-                        city_id,
-                        username,
-                        email,
-                        first_name,
-                        last_name,
-                        phone_number,
-                        address,
-                        postal_code,
-                    ),
-                )
-                updated_user = cursor.fetchone()
-                if not updated_user:
-                    raise HTTPException(
-                        status_code=404, detail="Couldn't find requested user."
-                    )
-                conn.commit()
-                return updated_user
-            except UniqueViolation:
-                conn.rollback()
-                raise HTTPException(
-                    status_code=409, detail="User already exists with same info."
-                )
-            except ForeignKeyViolation:
-                conn.rollback()
-                raise HTTPException(
-                    status_code=400,
-                    detail="Invalid 'language_id', 'profile_picture_id', 'city_id' or 'currency_id'.",
-                )
-            except DataError:
-                conn.rollback()
-                raise HTTPException(status_code=400, detail="Invalid data format/type.")
+    try:
+        updated_user = db.update_user(
+            language_id,
+            currency_id,
+            profile_picture_id,
+            city_id,
+            username,
+            email,
+            first_name,
+            last_name,
+            phone_number,
+            address,
+            postal_code,
+            user_id,
+        )
+        if not updated_user:
+            raise HTTPException(status_code=404, detail="Couldn't find requested user.")
+        return updated_user
+    except UniqueViolation:
+        raise HTTPException(
+            status_code=409, detail="User already exists with same info."
+        )
+    except ForeignKeyViolation:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid 'language_id', 'profile_picture_id', 'city_id' or 'currency_id'.",
+        )
+    except DataError:
+        raise HTTPException(status_code=400, detail="Invalid data format/type.")
 
 
 @app.put("/listings/{listing_id}/status")
 def update_listing_status(listing_id: int, status_id: int):
-    with con() as conn:
-        with conn.cursor(cursor_factory=RealDictCursor) as cursor:
-            try:
-                cursor.execute(
-                    """
-                            UPDATE listings
-                            SET 
-                            status_id = %s,
-                            WHERE listing_id = %s
-                            RETURNING *
-""",
-                    (status_id, listing_id),
-                )
-                updated_status = cursor.fetchone()
-                conn.commit()
-                return updated_status
-            except ForeignKeyViolation:
-                conn.rollback()
-                raise HTTPException(
-                    status_code=400,
-                    detail="Invalid 'status_id'.",
-                )
-            except DataError:
-                conn.rollback()
-                raise HTTPException(status_code=400, detail="Invalid data format/type.")
+    try:
+        updated_status = db.update_listing_status(listing_id, status_id)
+        return updated_status
+    except ForeignKeyViolation:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid 'status_id'.",
+        )
+    except DataError:
+        raise HTTPException(status_code=400, detail="Invalid data format/type.")
 
 
 @app.put("/users/{user_id}/password")
@@ -452,36 +387,21 @@ def update_password(password_hash: str, user_id: int):
     """
     Updates a users password.
     """
-    with con() as conn:
-        with conn.cursor(cursor_factory=RealDictCursor) as cursor:
-            try:
-                cursor.execute(
-                    """
-                            UPDATE users
-                            SET 
-                            password_hash = %s
-                            WHERE user_id = %s
-                            RETURNING user_id
-""",
-                    (password_hash, user_id),
-                )
-                updated_user = cursor.fetchone()
-                if not updated_user:
-                    raise HTTPException(
-                        status_code=404,
-                        detail="Could not find requested user_id for a user.",
-                    )
-                conn.commit()
-                return {"message: Successfully changed password.user": updated_user}
-            except ForeignKeyViolation:
-                conn.rollback()
-                raise HTTPException(
-                    status_code=400,
-                    detail="Invalid 'user_id'.",
-                )
-            except DataError:
-                conn.rollback()
-                raise HTTPException(status_code=400, detail="Invalid data format/type.")
+    try:
+        updated_user = db.update_password(password_hash, user_id)
+        if not updated_user:
+            raise HTTPException(
+                status_code=404,
+                detail="Could not find requested user_id for a user.",
+            )
+        return {"message: Successfully changed password."}
+    except ForeignKeyViolation:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid 'user_id'.",
+        )
+    except DataError:
+        raise HTTPException(status_code=400, detail="Invalid data format/type.")
 
 
 @app.put("/orders/{order_id}")
@@ -498,58 +418,34 @@ def update_order(
     """
     Updates a order.
     """
-    with con() as conn:
-        with conn.cursor(cursor_factory=RealDictCursor) as cursor:
-            try:
-                cursor.execute(
-                    """
-                            UPDATE orders
-                            SET
-                                
-                                shipping_option_id = %s
-                                order_status_id = %s
-                                shipping_address = %s
-                                shipping_city = %s
-                                shipping_postal_code = %s
-                                final_price = %s
-                                discount_amount = %s
-                            WHERE order_id = %s 
-                            RETURNING *
-""",
-                    (
-                        shipping_option_id,
-                        order_status_id,
-                        shipping_address,
-                        shipping_city,
-                        shipping_postal_code,
-                        final_price,
-                        discount_amount,
-                        order_id,
-                    ),
-                )
-                updated_order = cursor.fetchone()
-                if not updated_order:
-                    conn.rollback()
-                    raise HTTPException(
-                        status_code=404,
-                        detail="Could not find requested order_id for a order.",
-                    )
-                conn.commit()
-                return updated_order
-            except UniqueViolation:
-                conn.rollback()
-                raise HTTPException(
-                    status_code=409, detail="Order already exists with same info."
-                )
-            except ForeignKeyViolation:
-                conn.rollback()
-                raise HTTPException(
-                    status_code=400,
-                    detail="Invalid 'buyer_id', 'listing_id', 'shipping_option_id', 'shipping_option_id' or 'order_status_id'.",
-                )
-            except DataError:
-                conn.rollback()
-                raise HTTPException(status_code=400, detail="Invalid data format/type.")
+    try:
+        updated_order = db.update_order(
+            shipping_option_id,
+            order_status_id,
+            shipping_address,
+            shipping_city,
+            shipping_postal_code,
+            final_price,
+            discount_amount,
+            order_id,
+        )
+        if not updated_order:
+            raise HTTPException(
+                status_code=404,
+                detail="Could not find requested order_id for a order.",
+            )
+        return updated_order
+    except UniqueViolation:
+        raise HTTPException(
+            status_code=409, detail="Order already exists with same info."
+        )
+    except ForeignKeyViolation:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid 'buyer_id', 'listing_id', 'shipping_option_id', 'shipping_option_id' or 'order_status_id'.",
+        )
+    except DataError:
+        raise HTTPException(status_code=400, detail="Invalid data format/type.")
 
 
 @app.delete("/listings/{listing_id}")
