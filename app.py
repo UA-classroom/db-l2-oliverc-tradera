@@ -1,17 +1,12 @@
-import os
-
 import psycopg2
 from db_setup import get_connection as con
 from fastapi import FastAPI, HTTPException
 from psycopg2.errors import (
-    CheckViolation,
     DataError,
     ForeignKeyViolation,
-    NotNullViolation,
     UniqueViolation,
 )
 from psycopg2.extras import RealDictCursor
-from pydantic import BaseModel
 
 app = FastAPI()
 """
@@ -400,7 +395,7 @@ def create_bid(
             except ForeignKeyViolation:
                 conn.rollback()
                 raise HTTPException(
-                    status_code=400, detail="Invalid 'listing_id' or 'user_id'"
+                    status_code=409, detail="Invalid 'listing_id' or 'user_id'"
                 )
             except DataError:
                 conn.rollback()
@@ -464,7 +459,7 @@ def create_review(
             except ForeignKeyViolation:
                 conn.rollback()
                 raise HTTPException(
-                    status_code=400,
+                    status_code=409,
                     detail="Invalid 'listing_id', 'reviewee_id' or 'reviewer_id'.",
                 )
             except DataError:
@@ -495,7 +490,6 @@ def update_listing(
                             UPDATE listings
                             SET 
                                 listing_type_id = %s,
-                                status_id = %s,
                                 product_name = %s, 
                                 title = %s, 
                                 description = %s,
@@ -507,7 +501,6 @@ def update_listing(
     """,
                     (
                         listing_type_id,
-                        status_id,
                         product_name,
                         title,
                         description,
@@ -534,7 +527,7 @@ def update_listing(
             except ForeignKeyViolation:
                 conn.rollback()
                 raise HTTPException(
-                    status_code=400,
+                    status_code=409,
                     detail="Invalid 'listing_type_id' or 'status_id'.",
                 )
             except DataError:
@@ -610,7 +603,7 @@ def update_user(
             except ForeignKeyViolation:
                 conn.rollback()
                 raise HTTPException(
-                    status_code=400,
+                    status_code=409,
                     detail="Invalid 'language_id', 'profile_picture_id', 'city_id' or 'currency_id'.",
                 )
             except DataError:
@@ -618,11 +611,187 @@ def update_user(
                 raise HTTPException(status_code=400, detail="Invalid data format/type.")
 
 
-# @app.put()
-# @app.put()
-# @app.put()
+@app.put("/listings/{listing_id}/status")
+def update_listing_status(listing_id: int, status_id: int):
+    with con() as conn:
+        with conn.cursor(cursor_factory=RealDictCursor) as cursor:
+            try:
+                cursor.execute(
+                    """
+                            UPDATE listings
+                            SET 
+                            status_id = %s,
+                            WHERE listing_id = %s
+                            RETURNING *
+""",
+                    (status_id, listing_id),
+                )
+                updated_status = cursor.fetchone()
+                conn.commit()
+                return updated_status
+            except ForeignKeyViolation:
+                conn.rollback()
+                raise HTTPException(
+                    status_code=409,
+                    detail="Invalid 'status_id'.",
+                )
+            except DataError:
+                conn.rollback()
+                raise HTTPException(status_code=400, detail="Invalid data format/type.")
 
-# @app.delete()
+
+@app.put("/users/{user_id}/password")
+def update_password(password_hash: str, user_id: int):
+    """
+    Updates a users password.
+    """
+    with con() as conn:
+        with conn.cursor(cursor_factory=RealDictCursor) as cursor:
+            try:
+                cursor.execute(
+                    """
+                            UPDATE users
+                            SET 
+                            password_hash = %s
+                            WHERE user_id = %s
+                            RETURNING user_id
+""",
+                    (password_hash, user_id),
+                )
+                updated_user = cursor.fetchone()
+                if not updated_user:
+                    raise HTTPException(
+                        status_code=404,
+                        detail="Could not find requested user_id for a user.",
+                    )
+                conn.commit()
+                return {"message: Successfully changed password.user": updated_user}
+            except ForeignKeyViolation:
+                conn.rollback()
+                raise HTTPException(
+                    status_code=409,
+                    detail="Invalid 'user_id'.",
+                )
+            except DataError:
+                conn.rollback()
+                raise HTTPException(status_code=400, detail="Invalid data format/type.")
+
+
+@app.put("/orders/{order_id}")
+def update_order(
+    order_id,
+    seller_id,
+    buyer_id,
+    listing_id,
+    shipping_option_id,
+    order_status_id,
+    shipping_cost,
+    shipping_address,
+    shipping_city,
+    shipping_postal_code,
+    final_price,
+    updated_at,
+):
+    """
+    Updates a order.
+    """
+    with con() as conn:
+        with conn.cursor(cursor_factory=RealDictCursor) as cursor:
+            try:
+                cursor.execute(
+                    """
+                            UPDATE orders
+                            SET
+                                
+                                buyer_id = %s,
+                                listing_id = %s,
+                                shipping_option_id = %s,
+                                order_status_id = %s,
+                                
+                                shipping_cost = %s,
+                                shipping_address = %s,
+                                shipping_city = %s,
+                                shipping_postal_code = %s,
+                                final_price = %s,
+                                
+                                updated_at = %s
+                            WHERE order_id = %s 
+                            RETURNING *
+""",
+                    (
+                        order_id,
+                        seller_id,
+                        buyer_id,
+                        listing_id,
+                        shipping_option_id,
+                        order_status_id,
+                        shipping_cost,
+                        shipping_address,
+                        shipping_city,
+                        shipping_postal_code,
+                        final_price,
+                        updated_at,
+                    ),
+                )
+                updated_order = cursor.fetchone()
+                if not updated_order:
+                    conn.rollback()
+                    raise HTTPException(
+                        status_code=404,
+                        detail="Could not find requested order_id for a order.",
+                    )
+                conn.commit()
+                return updated_order
+            except UniqueViolation:
+                conn.rollback()
+                raise HTTPException(
+                    status_code=409, detail="Order already exists with same info."
+                )
+            except ForeignKeyViolation:
+                conn.rollback()
+                raise HTTPException(
+                    status_code=409,
+                    detail="Invalid 'buyer_id', 'listing_id', 'shipping_option_id', 'shipping_option_id' or 'order_status_id'.",
+                )
+            except DataError:
+                conn.rollback()
+                raise HTTPException(status_code=400, detail="Invalid data format/type.")
+
+
+@app.delete("/listings/{listing_id}")
+def delete_listing(listing_id: int):
+    """
+    Updates a order.
+    """
+    with con() as conn:
+        with conn.cursor(cursor_factory=RealDictCursor) as cursor:
+            try:
+                cursor.execute(
+                    """
+                            DELETE FROM listings
+                            WHERE listing_id = %s
+                            RETURNING listing_title, title
+""",
+                    (listing_id),
+                )
+                deleted_listing = cursor.fetchone()
+                if not deleted_listing:
+                    raise HTTPException(
+                        status_code=404, detail="Couldn't find the requested listing."
+                    )
+                conn.commit()
+                return deleted_listing
+            except ForeignKeyViolation:
+                conn.rollback()
+                raise HTTPException(
+                    status_code=409,
+                    detail="Cannot delete listing, has active relations.",
+                )
+            except DataError:
+                conn.rollback()
+                raise HTTPException(status_code=400, detail="Invalid data format/type.")
+
+
 # @app.delete()
 # @app.delete()
 # @app.delete()
