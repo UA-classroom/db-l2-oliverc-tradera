@@ -116,61 +116,35 @@ def register_user(
     """
     Creates a new user in database.
     """
-    with con() as conn:
-        with conn.cursor(cursor_factory=RealDictCursor) as cursor:
-            try:
-                cursor.execute(
-                    """
-                                    INSERT INTO users(
-                                    username,
-                                    email,
-                                    password_hash,
-                                    social_security_number,
-                                    first_name,
-                                    last_name,
-                                    city_id,
-                                    address,
-                                    postal_code,
-                                    phone_number
-                                    )
-                                    VALUES(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                                    RETURNING user_id, username, email, first_name, last_name, city_id, address, postal_code, phone_number, created_at
-                                    """,
-                    (
-                        username,
-                        email,
-                        password,
-                        social_security_number,
-                        first_name,
-                        last_name,
-                        city_id,
-                        address,
-                        postal_code,
-                        phone_number,
-                    ),
-                )
-                new_user = cursor.fetchone()
-                if not new_user:
-                    conn.rollback()
-                    raise HTTPException(
-                        status_code=422,
-                        detail="Failed to create new listing, data provided is invalid.",
-                    )
-                conn.commit()
-                return new_user
-            except UniqueViolation:
-                conn.rollback()
-                raise HTTPException(
-                    status_code=409, detail="Listing already exists with same info."
-                )
-            except ForeignKeyViolation:
-                conn.rollback()
-                raise HTTPException(
-                    status_code=400, detail="Invalid 'seller_id' or 'listing_type_id'"
-                )
-            except DataError:
-                conn.rollback()
-                raise HTTPException(status_code=400, detail="Invalid data format/type.")
+    try:
+        new_user = db.register_user(
+            username,
+            email,
+            password,
+            social_security_number,
+            first_name,
+            last_name,
+            city_id,
+            address,
+            postal_code,
+            phone_number,
+        )
+        if not new_user:
+            raise HTTPException(
+                status_code=422,
+                detail="Failed to create new listing, data provided is invalid.",
+            )
+        return new_user
+    except UniqueViolation:
+        raise HTTPException(
+            status_code=409, detail="Listing already exists with same info."
+        )
+    except ForeignKeyViolation:
+        raise HTTPException(
+            status_code=400, detail="Invalid 'seller_id' or 'listing_type_id'"
+        )
+    except DataError:
+        raise HTTPException(status_code=400, detail="Invalid data format/type.")
 
 
 @app.post("/new_city")
@@ -178,24 +152,11 @@ def add_city(city_name: str):
     """
     Creates a new city in database.
     """
-    with con() as conn:
-        with conn.cursor(cursor_factory=RealDictCursor) as cursor:
-            try:
-                cursor.execute(
-                    """
-                    INSERT INTO cities(city_name)
-                    VALUES(%s)
-                    RETURNING city_name
-                    """,
-                    (city_name,),
-                )
-                new_city = cursor.fetchone()
-                conn.commit()
-
-                return new_city
-            except UniqueViolation:
-                conn.rollback()
-                raise HTTPException(status_code=409, detail="City already exists.")
+    try:
+        new_city = db.add_city(city_name=city_name)
+        return new_city
+    except UniqueViolation:
+        raise HTTPException(status_code=409, detail="City already exists.")
 
 
 @app.post("/new_listing")
@@ -212,57 +173,34 @@ def create_listing(
     """
     Creates a new listing in database.
     """
-    with con() as conn:
-        with conn.cursor(cursor_factory=RealDictCursor) as cursor:
-            try:
-                cursor.execute(
-                    """
-                            INSERT INTO listings(
-                                    seller_id,
-                                    listing_type_id,
-                                    product_name,
-                                    title,
-                                    description,
-                                    starting_price,
-                                    pick_up_available,
-                                    end_date   
-                                    )
-                                    VALUES(%s, %s, %s, %s, %s, %s, %s, %s)
-                                    RETURNING *
-                                        """,
-                    (
-                        seller_id,
-                        listing_type_id,
-                        product_name,
-                        title,
-                        description,
-                        starting_price,
-                        pick_up_available,
-                        end_date,
-                    ),
-                )
-                new_listing = cursor.fetchone()
-                if not new_listing:
-                    conn.rollback()
-                    raise HTTPException(
-                        status_code=422,
-                        detail="Failed to create new listing, data provided is invalid.",
-                    )
-                conn.commit()
-                return new_listing
-            except UniqueViolation:
-                conn.rollback()
-                raise HTTPException(
-                    status_code=409, detail="Listing already exists with same info."
-                )
-            except ForeignKeyViolation:
-                conn.rollback()
-                raise HTTPException(
-                    status_code=400, detail="Invalid 'seller_id' or 'listing_type_id'"
-                )
-            except DataError:
-                conn.rollback()
-                raise HTTPException(status_code=400, detail="Invalid data format/type.")
+
+    try:
+        new_listing = db.create_listing(
+            seller_id,
+            listing_type_id,
+            product_name,
+            title,
+            description,
+            starting_price,
+            pick_up_available,
+            end_date,
+        )
+        if not new_listing:
+            raise HTTPException(
+                status_code=422,
+                detail="Failed to create new listing, data provided is invalid.",
+            )
+        return new_listing
+    except UniqueViolation:
+        raise HTTPException(
+            status_code=409, detail="Listing already exists with same info."
+        )
+    except ForeignKeyViolation:
+        raise HTTPException(
+            status_code=400, detail="Invalid 'seller_id' or 'listing_type_id'"
+        )
+    except DataError:
+        raise HTTPException(status_code=400, detail="Invalid data format/type.")
 
 
 @app.post("/bids")
@@ -276,45 +214,23 @@ def create_bid(
     """
     Creates a new bid in database.
     """
-    with con() as conn:
-        with conn.cursor(cursor_factory=RealDictCursor) as cursor:
-            try:
-                cursor.execute(
-                    """
-                            INSERT INTO bids(
-                                listing_id,
-                                user_id,
-                                bid_amount,
-                                is_auto,
-                                max_auto_bid
-)
-                                VALUES(%s, %s, %s, %s, %s)
-                                RETURNING *
-""",
-                    (listing_id, user_id, bid_amount, is_auto, max_auto_bid),
-                )
-                new_bid = cursor.fetchone()
-                if not new_bid:
-                    conn.rollback()
-                    raise HTTPException(
-                        status_code=422,
-                        detail="Failed to create new bid, data provided is invalid.",
-                    )
-                conn.commit()
-                return new_bid
-            except UniqueViolation:
-                conn.rollback()
-                raise HTTPException(
-                    status_code=409, detail="Bidding already exists with same info."
-                )
-            except ForeignKeyViolation:
-                conn.rollback()
-                raise HTTPException(
-                    status_code=409, detail="Invalid 'listing_id' or 'user_id'"
-                )
-            except DataError:
-                conn.rollback()
-                raise HTTPException(status_code=400, detail="Invalid data format/type.")
+    try:
+        new_bid = db.create_bid(listing_id, user_id, bid_amount, is_auto, max_auto_bid)
+        if not new_bid:
+            raise HTTPException(
+                status_code=422,
+                detail="Failed to create new bid, data provided is invalid.",
+            )
+
+        return new_bid
+    except UniqueViolation:
+        raise HTTPException(
+            status_code=409, detail="Bidding already exists with same info."
+        )
+    except ForeignKeyViolation:
+        raise HTTPException(status_code=409, detail="Invalid 'listing_id' or 'user_id'")
+    except DataError:
+        raise HTTPException(status_code=400, detail="Invalid data format/type.")
 
 
 @app.post("/reviews")
@@ -330,56 +246,33 @@ def create_review(
     """
     Creates a new review in database.
     """
-    with con() as conn:
-        with conn.cursor(cursor_factory=RealDictCursor) as cursor:
-            try:
-                cursor.execute(
-                    """
-                            INSERT INTO reviews(
-                                listing_id,
-                                reviewer_id,
-                                reviewee_id,
-                                is_negative,
-                                is_positive,
-                                review_text,
-                                rating
-                                )
-                                VALUES(%s, %s, %s, %s, %s, %s, %s)
-                                RETURNING *
-""",
-                    (
-                        listing_id,
-                        reviewer_id,
-                        reviewee_id,
-                        is_negative,
-                        is_positive,
-                        review_text,
-                        rating,
-                    ),
-                )
-                new_review = cursor.fetchone()
-                if not new_review:
-                    conn.rollback()
-                    raise HTTPException(
-                        status_code=422,
-                        detail="Failed to create review, data provided is invalid.",
-                    )
-                conn.commit()
-                return new_review
-            except UniqueViolation:
-                conn.rollback()
-                raise HTTPException(
-                    status_code=409, detail="Review already exists with same info."
-                )
-            except ForeignKeyViolation:
-                conn.rollback()
-                raise HTTPException(
-                    status_code=400,
-                    detail="Invalid 'listing_id', 'reviewee_id' or 'reviewer_id'.",
-                )
-            except DataError:
-                conn.rollback()
-                raise HTTPException(status_code=400, detail="Invalid data format/type.")
+    try:
+        new_review = db.create_review(
+            listing_id,
+            reviewer_id,
+            reviewee_id,
+            review_text,
+            rating,
+            is_negative,
+            is_positive,
+        )
+        if not new_review:
+            raise HTTPException(
+                status_code=422,
+                detail="Failed to create review, data provided is invalid.",
+            )
+        return new_review
+    except UniqueViolation:
+        raise HTTPException(
+            status_code=409, detail="Review already exists with same info."
+        )
+    except ForeignKeyViolation:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid 'listing_id', 'reviewee_id' or 'reviewer_id'.",
+        )
+    except DataError:
+        raise HTTPException(status_code=400, detail="Invalid data format/type.")
 
 
 @app.put("/listings/{listing_id}")
