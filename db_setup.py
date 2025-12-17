@@ -11,10 +11,7 @@ PASSWORD = os.getenv("PASSWORD")
 
 def get_connection():
     """
-    Function that returns a single connection
-    In reality, we might use a connection pool, since
-    this way we'll start a new connection each time
-    someone hits one of our endpoints, which isn't great for performance
+    Function that returns a single connection.
     """
     return psycopg2.connect(
         dbname=DATABASE_NAME,
@@ -30,7 +27,6 @@ def create_tables():
     A function to create the necessary tables for the project.
     """
     conn = get_connection()
-    # cursor = conn.cursor()
 
     with conn:
         with conn.cursor() as cursor:
@@ -174,7 +170,7 @@ def create_tables():
                             
                             product_name VARCHAR(50) NOT NULL, 
                             title VARCHAR(20) NOT NULL,
-                            description TEXT,
+                            description VARCHAR(500),
                             starting_price INT NOT NULL,
                             view_count INT DEFAULT 1,
                             
@@ -198,7 +194,7 @@ def create_tables():
                             order_status_id INT REFERENCES order_status(status_id),
                             
                             shipping_cost DECIMAL(8,2) NOT NULL DEFAULT 0,
-                            shipping_address TEXT NOT NULL,
+                            shipping_address VARCHAR(100) NOT NULL,
                             shipping_city VARCHAR(50),
                             shipping_postal_code VARCHAR(10) NOT NULL,
                             final_price DECIMAL(10,2) NOT NULL,

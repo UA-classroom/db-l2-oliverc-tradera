@@ -1,3 +1,4 @@
+import db
 import psycopg2
 from db_setup import get_connection as con
 from fastapi import FastAPI, HTTPException
@@ -9,33 +10,6 @@ from psycopg2.errors import (
 from psycopg2.extras import RealDictCursor
 
 app = FastAPI()
-"""
-ADD ENDPOINTS FOR FASTAPI HERE
-Make sure to do the following:
-- Use the correct HTTP method (e.g get, post, put, delete)
-- Use correct STATUS CODES, e.g 200, 400, 401 etc. when returning a result to the user
-- Use pydantic models whenever you receive user data and need to validate the structure and data types (VG)
-This means you need some error handling that determine what should be returned to the user
-Read more: https://www.geeksforgeeks.org/10-most-common-http-status-codes/
-- Use correct URL paths the resource, e.g some endpoints should be located at the exact same URL, 
-but will have different HTTP-verbs.
-"""
-
-
-# INSPIRATION FOR A LIST-ENDPOINT - Not necessary to use pydantic models, but we could to ascertain that we return the correct values
-# @app.get("/items/")
-# def read_items():
-#     con = get_connection()
-#     items = get_items(con)
-#     return {"items": items}
-
-
-# INSPIRATION FOR A POST-ENDPOINT, uses a pydantic model to validate
-# @app.post("/validation_items/")
-# def create_item_validation(item: ItemCreate):
-#     con = get_connection()
-#     item_id = add_item_validation(con, item)
-#     return {"item_id": item_id}
 
 
 @app.get("/listings")
@@ -43,31 +17,17 @@ def get_all_listings():
     """
     Fetches all active listings in database.
     """
-    with con() as conn:
-        with conn.cursor(cursor_factory=RealDictCursor) as cursor:
-            try:
-                get_all_listings_query = """
-                SELECT *
-                FROM listings 
-                WHERE status_id = 1
-                ORDER BY start_date DESC;
-                """
-                cursor.execute(get_all_listings_query)
+    try:
+        listings = db.get_all_listings()
+        if not listings:
+            raise HTTPException(status_code=404, detail="No active listings found.")
 
-                listings = cursor.fetchall()
-                if not listings:
-                    raise HTTPException(
-                        status_code=404, detail="No active listings found."
-                    )
+        return listings
 
-                return listings
-
-            except psycopg2.DatabaseError:
-                raise HTTPException(status_code=500, detail="Database error occured.")
-            except psycopg2.OperationalError:
-                raise HTTPException(
-                    status_code=503, detail="No database connection found."
-                )
+    except psycopg2.DatabaseError:
+        raise HTTPException(status_code=500, detail="Database error occured.")
+    except psycopg2.OperationalError:
+        raise HTTPException(status_code=503, detail="No database connection found.")
 
 
 @app.get("/users")
@@ -75,83 +35,50 @@ def get_all_users():
     """
     Fetches all users in database.
     """
-    with con() as conn:
-        with conn.cursor(cursor_factory=RealDictCursor) as cursor:
-            try:
-                cursor.execute(
-                    """
-                    SELECT * 
-                    FROM users
-                    ORDER BY created_at DESC;
-                    """
-                )
-                users = cursor.fetchall()
-                return users
-            except psycopg2.DatabaseError:
-                raise HTTPException(status_code=500, detail="Database error occured.")
-            except psycopg2.OperationalError:
-                raise HTTPException(
-                    status_code=503, detail="No database connection found."
-                )
+    try:
+        users = db.get_all_users()
+        return users
+    except psycopg2.DatabaseError:
+        raise HTTPException(status_code=500, detail="Database error occured.")
+    except psycopg2.OperationalError:
+        raise HTTPException(status_code=503, detail="No database connection found.")
 
 
 @app.get("/users/{user_id}")
 def get_user_by_id(user_id: int):
-    with con() as conn:
-        with conn.cursor(cursor_factory=RealDictCursor) as cursor:
-            try:
-                cursor.execute(
-                    """
-
-                                SELECT * 
-                                FROM users
-                                WHERE user_id = %s
-                                """,
-                    (user_id,),
-                )
-
-                user = cursor.fetchone()
-                if user is None:
-                    raise HTTPException(
-                        status_code=404, detail="No user found with given 'user_id'."
-                    )
-                return user
-            except psycopg2.DatabaseError:
-                raise HTTPException(status_code=500, detail="Database error occured.")
-            except psycopg2.OperationalError:
-                raise HTTPException(
-                    status_code=503, detail="No database connection found."
-                )
+    """
+    Fetches a user by user_id.
+    """
+    try:
+        user = db.get_user_by_id(user_id=user_id)
+        if user is None:
+            raise HTTPException(
+                status_code=404, detail="No user found with given 'user_id'."
+            )
+        return user
+    except psycopg2.DatabaseError:
+        raise HTTPException(status_code=500, detail="Database error occured.")
+    except psycopg2.OperationalError:
+        raise HTTPException(status_code=503, detail="No database connection found.")
 
 
 @app.get("/listings/{listing_id}")
 def get_listing_by_id(listing_id: int):
-    with con() as conn:
-        with conn.cursor(cursor_factory=RealDictCursor) as cursor:
-            try:
-                cursor.execute(
-                    """
-
-                                SELECT * 
-                                FROM listings
-                                WHERE listing_id = %s
-                                """,
-                    (listing_id,),
-                )
-
-                listing = cursor.fetchone()
-                if listing is None:
-                    raise HTTPException(
-                        status_code=404,
-                        detail="No listing found with given 'listing_id'.",
-                    )
-                return listing
-            except psycopg2.DatabaseError:
-                raise HTTPException(status_code=500, detail="Database error occured.")
-            except psycopg2.OperationalError:
-                raise HTTPException(
-                    status_code=503, detail="No database connection found."
-                )
+    """
+    Fetches a listing by listing_id.
+    """
+    try:
+        listing = db.get_listing_by_id(listing_id=listing_id)
+        if listing is None:
+            raise HTTPException(
+                status_code=404,
+                detail="No listing found with given 'listing_id'.",
+            )
+        return listing
+    except psycopg2.DatabaseError:
+        raise HTTPException(status_code=500, detail="Database error occured.")
+    except psycopg2.OperationalError:
+        raise HTTPException(status_code=503, detail="No database connection found.")
 
 
 @app.get("/users/{user_id}/listings")
@@ -159,30 +86,18 @@ def get_all_user_listings(seller_id: int):
     """
     Fetches all listings from one user.
     """
-    with con() as conn:
-        with conn.cursor(cursor_factory=RealDictCursor) as cursor:
-            try:
-                cursor.execute(
-                    """
-                            SELECT *
-                            FROM listings
-                            WHERE seller_id = %s
-""",
-                    (seller_id,),
-                )
-                listings = cursor.fetchall()
-                if not listings:
-                    raise HTTPException(
-                        status_code=404,
-                        detail="Provided user does not have any listings.",
-                    )
-                return listings
-            except psycopg2.DatabaseError:
-                raise HTTPException(status_code=500, detail="Database error occured.")
-            except psycopg2.OperationalError:
-                raise HTTPException(
-                    status_code=503, detail="No database connection found."
-                )
+    try:
+        listings = db - get_all_user_listings(seller_id=seller_id)
+        if not listings:
+            raise HTTPException(
+                status_code=404,
+                detail="Provided user does not have any listings.",
+            )
+        return listings
+    except psycopg2.OperationalError:
+        raise HTTPException(status_code=503, detail="No database connection found.")
+    except psycopg2.DatabaseError:
+        raise HTTPException(status_code=500, detail="Database error occured.")
 
 
 @app.post("/new_user")
@@ -459,7 +374,7 @@ def create_review(
             except ForeignKeyViolation:
                 conn.rollback()
                 raise HTTPException(
-                    status_code=409,
+                    status_code=400,
                     detail="Invalid 'listing_id', 'reviewee_id' or 'reviewer_id'.",
                 )
             except DataError:
@@ -747,7 +662,7 @@ def update_order(
 @app.delete("/listings/{listing_id}")
 def delete_listing(listing_id: int):
     """
-    Updates a order.
+    Updates a listings.
     """
     with con() as conn:
         with conn.cursor(cursor_factory=RealDictCursor) as cursor:
@@ -926,6 +841,9 @@ def partial_update_user(
     translation_on: bool = None,
     vacation_mode: bool = None,
 ):
+    """
+    Partially updates a user based on the input.
+    """
     with con() as conn:
         with conn.cursor(cursor_factory=RealDictCursor) as cursor:
             updated_values = []

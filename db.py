@@ -1,4 +1,5 @@
 import psycopg2
+from db_setup import get_connection as con
 from psycopg2.extras import RealDictCursor
 
 """
@@ -18,31 +19,88 @@ start with a connection parameter.
 """
 
 
-### THIS IS JUST AN EXAMPLE OF A FUNCTION FOR INSPIRATION FOR A LIST-OPERATION (FETCHING MANY ENTRIES)
-# def get_items(con):
-#     with con:
-#         with con.cursor(cursor_factory=RealDictCursor) as cursor:
-#             cursor.execute("SELECT * FROM items;")
-#             items = cursor.fetchall()
-#     return items
+def get_all_listings():
+    """
+    Fetches all active listings in database.
+    """
+    with con() as conn:
+        with conn.cursor(cursor_factory=RealDictCursor) as cursor:
+            get_all_listings_query = """
+                SELECT *
+                FROM listings 
+                WHERE status_id = 1
+                ORDER BY start_date DESC;
+                """
+            cursor.execute(get_all_listings_query)
+
+            return cursor.fetchall()
 
 
-### THIS IS JUST INSPIRATION FOR A DETAIL OPERATION (FETCHING ONE ENTRY)
-# def get_item(con, item_id):
-#     with con:
-#         with con.cursor(cursor_factory=RealDictCursor) as cursor:
-#             cursor.execute("""SELECT * FROM items WHERE id = %s""", (item_id,))
-#             item = cursor.fetchone()
-#             return item
+def get_all_users():
+    """
+    Fetches all users in database.
+    """
+    with con() as conn:
+        with conn.cursor(cursor_factory=RealDictCursor) as cursor:
+            cursor.execute(
+                """
+                    SELECT * 
+                    FROM users
+                    ORDER BY created_at DESC;
+                    """
+            )
+
+            return cursor.fetchall()
 
 
-### THIS IS JUST INSPIRATION FOR A CREATE-OPERATION
-# def add_item(con, title, description):
-#     with con:
-#         with con.cursor(cursor_factory=RealDictCursor) as cursor:
-#             cursor.execute(
-#                 "INSERT INTO items (title, description) VALUES (%s, %s) RETURNING id;",
-#                 (title, description),
-#             )
-#             item_id = cursor.fetchone()["id"]
-#     return item_id
+def get_user_by_id(user_id: int):
+    """
+    Fetches a user by user_id.
+    """
+    with con() as conn:
+        with conn.cursor(cursor_factory=RealDictCursor) as cursor:
+            cursor.execute(
+                """
+                SELECT * 
+                FROM users
+                WHERE user_id = %s
+                """,
+                (user_id,),
+            )
+
+        return cursor.fetchone()
+
+
+def get_listing_by_id(listing_id: int):
+    """
+    Fetches a listing by listing_id.
+    """
+    with con() as conn:
+        with conn.cursor(cursor_factory=RealDictCursor) as cursor:
+            cursor.execute(
+                """
+                    SELECT * 
+                    FROM listings
+                    WHERE listing_id = %s
+                    """,
+                (listing_id,),
+            )
+
+            return cursor.fetchone()
+
+
+def get_all_user_listings(seller_id: int):
+    """
+    Fetches all listings from one user.
+    """
+    with con() as conn:
+        with conn.cursor(cursor_factory=RealDictCursor) as cursor:
+            cursor.execute(
+                """
+                    SELECT *
+                    FROM listings
+                    WHERE seller_id = %s
+                    """,
+                (seller_id,),
+            )
+            return cursor.fetchall()
