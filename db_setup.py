@@ -34,7 +34,6 @@ def create_tables():
 
     with conn:
         with conn.cursor() as cursor:
-
             (
                 cursor.execute("""
                             CREATE TABLE IF NOT EXISTS languages(

@@ -3,6 +3,7 @@ import os
 import psycopg2
 from db_setup import get_connection as con
 from fastapi import FastAPI, HTTPException
+from psycopg2.extras import RealDictCursor
 from pydantic import BaseModel
 
 app = FastAPI()
@@ -40,10 +41,8 @@ def get_all_listings():
     """
     Fetches all active listings in database.
     """
-    conn = con()
-    cursor = conn.cursor()
-    with conn:
-        with cursor:
+    with con() as conn:
+        with conn.cursor(cursor_factory=RealDictCursor) as cursor:
             try:
                 get_all_listings_query = """
                 SELECT *
@@ -63,7 +62,23 @@ def get_all_listings():
                 pass
 
 
-# @app.get("/")
+@app.get("/all_users")
+def get_all_users():
+    """
+    Fetches all users in database.
+    """
+    with con() as conn:
+        with conn.cursor(cursor_factory=RealDictCursor) as cursor:
+            cursor.execute(
+                """
+                SELECT * 
+                FROM users
+                ORDER BY created_at DESC;
+                """
+            )
+            users = cursor.fetchall()
+            return users
+
 
 # @app.get("/")
 # @app.get("/")
@@ -88,36 +103,42 @@ def register_user(
     """
     with con() as conn:
         with conn.cursor() as cursor:
-            cursor.execute(
-                """
-                                INSERT INTO users(
-                                username,
-                                email,
-                                password_hash,
-                                social_security_number,
-                                first_name,
-                                last_name,
-                                city_id,
-                                address,
-                                postal_code,
-                                phone_number
-                                )
-                                VALUES(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                                RETURNING user_id, username, email, first_name, last_name, city_id, address, postal_code, phone_number, created_at
-                                """,
-                (
-                    username,
-                    email,
-                    password,
-                    social_security_number,
-                    first_name,
-                    last_name,
-                    city_id,
-                    address,
-                    postal_code,
-                    phone_number,
-                ),
-            )
+            try:
+                cursor.execute(
+                    """
+                                    INSERT INTO users(
+                                    username,
+                                    email,
+                                    password_hash,
+                                    social_security_number,
+                                    first_name,
+                                    last_name,
+                                    city_id,
+                                    address,
+                                    postal_code,
+                                    phone_number
+                                    )
+                                    VALUES(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                                    RETURNING user_id, username, email, first_name, last_name, city_id, address, postal_code, phone_number, created_at
+                                    """,
+                    (
+                        username,
+                        email,
+                        password,
+                        social_security_number,
+                        first_name,
+                        last_name,
+                        city_id,
+                        address,
+                        postal_code,
+                        phone_number,
+                    ),
+                )
+                new_user = cursor.fetchone()
+                conn.commit()
+                return new_user
+            except Exception as e:
+                pass
 
 
 @app.post("/city")
