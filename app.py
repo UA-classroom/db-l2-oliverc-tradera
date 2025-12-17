@@ -290,7 +290,7 @@ def create_listing(
     product_name: str,
     title: str,
     description: str,
-    starting_price: int,
+    starting_price: float,
     pick_up_available: bool,
     end_date: str,
 ):
@@ -354,7 +354,7 @@ def create_listing(
 def create_bid(
     listing_id: int,
     user_id: int,
-    bid_amount: int,
+    bid_amount: float,
     is_auto: bool = False,
     max_auto_bid: int = None,
 ):
@@ -469,15 +469,14 @@ def create_review(
 
 @app.put("/listings/{listing_id}")
 def update_listing(
-    listing_id: int,
     listing_type_id: int,
-    status_id: int,
     product_name: str,
     title: str,
     description: str,
-    starting_price: int,
+    starting_price: float,
     pick_up_available: bool,
     end_date: str,
+    listing_id: int,
 ):
     """
     Updates a listing.
@@ -527,7 +526,7 @@ def update_listing(
             except ForeignKeyViolation:
                 conn.rollback()
                 raise HTTPException(
-                    status_code=409,
+                    status_code=400,
                     detail="Invalid 'listing_type_id' or 'status_id'.",
                 )
             except DataError:
@@ -603,7 +602,7 @@ def update_user(
             except ForeignKeyViolation:
                 conn.rollback()
                 raise HTTPException(
-                    status_code=409,
+                    status_code=400,
                     detail="Invalid 'language_id', 'profile_picture_id', 'city_id' or 'currency_id'.",
                 )
             except DataError:
@@ -632,7 +631,7 @@ def update_listing_status(listing_id: int, status_id: int):
             except ForeignKeyViolation:
                 conn.rollback()
                 raise HTTPException(
-                    status_code=409,
+                    status_code=400,
                     detail="Invalid 'status_id'.",
                 )
             except DataError:
@@ -669,7 +668,7 @@ def update_password(password_hash: str, user_id: int):
             except ForeignKeyViolation:
                 conn.rollback()
                 raise HTTPException(
-                    status_code=409,
+                    status_code=400,
                     detail="Invalid 'user_id'.",
                 )
             except DataError:
@@ -679,18 +678,14 @@ def update_password(password_hash: str, user_id: int):
 
 @app.put("/orders/{order_id}")
 def update_order(
-    order_id,
-    seller_id,
-    buyer_id,
-    listing_id,
-    shipping_option_id,
-    order_status_id,
-    shipping_cost,
-    shipping_address,
-    shipping_city,
-    shipping_postal_code,
-    final_price,
-    updated_at,
+    shipping_option_id: int,
+    order_status_id: int,
+    shipping_address: str,
+    shipping_city: str,
+    shipping_postal_code: str,
+    final_price: float,
+    discount_amount: float,
+    order_id: int,
 ):
     """
     Updates a order.
@@ -703,34 +698,25 @@ def update_order(
                             UPDATE orders
                             SET
                                 
-                                buyer_id = %s,
-                                listing_id = %s,
-                                shipping_option_id = %s,
-                                order_status_id = %s,
-                                
-                                shipping_cost = %s,
-                                shipping_address = %s,
-                                shipping_city = %s,
-                                shipping_postal_code = %s,
-                                final_price = %s,
-                                
-                                updated_at = %s
+                                shipping_option_id = %s
+                                order_status_id = %s
+                                shipping_address = %s
+                                shipping_city = %s
+                                shipping_postal_code = %s
+                                final_price = %s
+                                discount_amount = %s
                             WHERE order_id = %s 
                             RETURNING *
 """,
                     (
-                        order_id,
-                        seller_id,
-                        buyer_id,
-                        listing_id,
                         shipping_option_id,
                         order_status_id,
-                        shipping_cost,
                         shipping_address,
                         shipping_city,
                         shipping_postal_code,
                         final_price,
-                        updated_at,
+                        discount_amount,
+                        order_id,
                     ),
                 )
                 updated_order = cursor.fetchone()
@@ -750,7 +736,7 @@ def update_order(
             except ForeignKeyViolation:
                 conn.rollback()
                 raise HTTPException(
-                    status_code=409,
+                    status_code=400,
                     detail="Invalid 'buyer_id', 'listing_id', 'shipping_option_id', 'shipping_option_id' or 'order_status_id'.",
                 )
             except DataError:
@@ -770,7 +756,7 @@ def delete_listing(listing_id: int):
                     """
                             DELETE FROM listings
                             WHERE listing_id = %s
-                            RETURNING listing_title, title
+                            RETURNING listing_id, title
 """,
                     (listing_id),
                 )
@@ -784,7 +770,7 @@ def delete_listing(listing_id: int):
             except ForeignKeyViolation:
                 conn.rollback()
                 raise HTTPException(
-                    status_code=409,
+                    status_code=400,
                     detail="Cannot delete listing, has active relations.",
                 )
             except DataError:
@@ -792,9 +778,225 @@ def delete_listing(listing_id: int):
                 raise HTTPException(status_code=400, detail="Invalid data format/type.")
 
 
-# @app.delete()
-# @app.delete()
-# @app.delete()
-# @app.delete()
+@app.delete("/users/{user_id}")
+def delete_user(user_id: int):
+    """
+    Deletes a user.
+    """
+    with con() as conn:
+        with conn.cursor(cursor_factory=RealDictCursor) as cursor:
+            try:
+                cursor.execute(
+                    """
+                            DELETE FROM users
+                            WHERE user_id = %s
+                            RETURNING user_id, username
+""",
+                    (user_id),
+                )
+                deleted_user = cursor.fetchone()
+                if not deleted_user:
+                    raise HTTPException(
+                        status_code=404, detail="Couldn't find the requested user."
+                    )
+                conn.commit()
+                return deleted_user
+            except ForeignKeyViolation:
+                conn.rollback()
+                raise HTTPException(
+                    status_code=400,
+                    detail="Cannot delete user, has active relations.",
+                )
+            except DataError:
+                conn.rollback()
+                raise HTTPException(status_code=400, detail="Invalid data format/type.")
 
-# @app.patch()
+
+@app.delete("/messages/{message_id}")
+def delete_message(message_id: int):
+    """
+    Deletes a message.
+    """
+    with con() as conn:
+        with conn.cursor(cursor_factory=RealDictCursor) as cursor:
+            try:
+                cursor.execute(
+                    """
+                            DELETE FROM messages
+                            WHERE message_id = %s
+                            RETURNING message_id, message_text
+""",
+                    (message_id),
+                )
+                deleted_message = cursor.fetchone()
+                if not deleted_message:
+                    raise HTTPException(
+                        status_code=404, detail="Couldn't find the requested message."
+                    )
+                conn.commit()
+                return deleted_message
+            except ForeignKeyViolation:
+                conn.rollback()
+                raise HTTPException(
+                    status_code=400,
+                    detail="Cannot delete message, has active relations.",
+                )
+            except DataError:
+                conn.rollback()
+                raise HTTPException(status_code=400, detail="Invalid data format/type.")
+
+
+@app.delete("/payment_methods/{method_id}")
+def delete_payment_method(method_id: int):
+    """
+    Deletes a payment_method.
+    """
+    with con() as conn:
+        with conn.cursor(cursor_factory=RealDictCursor) as cursor:
+            try:
+                cursor.execute(
+                    """
+                            DELETE FROM payment_methods
+                            WHERE method_id = %s
+                            RETURNING method_id, method_name
+""",
+                    (method_id),
+                )
+                deleted_payment_method = cursor.fetchone()
+                if not deleted_payment_method:
+                    raise HTTPException(
+                        status_code=404,
+                        detail="Couldn't find the requested payment_method.",
+                    )
+                conn.commit()
+                return deleted_payment_method
+            except DataError:
+                conn.rollback()
+                raise HTTPException(status_code=400, detail="Invalid data format/type.")
+
+
+@app.delete("/orders/{order_id}")
+def delete_order(order_id: int):
+    """
+    Deletes a order.
+    """
+    with con() as conn:
+        with conn.cursor(cursor_factory=RealDictCursor) as cursor:
+            try:
+                cursor.execute(
+                    """
+                            DELETE FROM orders
+                            WHERE order_id = %s
+                            RETURNING order_id, order_number
+""",
+                    (order_id),
+                )
+                deleted_order = cursor.fetchone()
+                if not deleted_order:
+                    raise HTTPException(
+                        status_code=404, detail="Couldn't find the requested order."
+                    )
+                conn.commit()
+                return deleted_order
+            except ForeignKeyViolation:
+                conn.rollback()
+                raise HTTPException(
+                    status_code=400,
+                    detail="Cannot delete order, has active relations.",
+                )
+            except DataError:
+                conn.rollback()
+                raise HTTPException(status_code=400, detail="Invalid data format/type.")
+
+
+@app.patch("/users/{user_id}")
+def partial_update_user(
+    user_id: int,
+    username: str = None,
+    email: str = None,
+    first_name: str = None,
+    last_name: str = None,
+    phone_number: str = None,
+    address: str = None,
+    postal_code: str = None,
+    language_id: int = None,
+    currency_id: int = None,
+    city_id: int = None,
+    profile_picture_id: int = None,
+    translation_on: bool = None,
+    vacation_mode: bool = None,
+):
+    with con() as conn:
+        with conn.cursor(cursor_factory=RealDictCursor) as cursor:
+            updated_values = []
+            values = []
+
+            if username:
+                updated_values.append("username = %s")
+                values.append(username)
+            if email:
+                updated_values.append("email = %s")
+                values.append(email)
+            if first_name:
+                updated_values.append("first_name = %s")
+                values.append(first_name)
+            if last_name:
+                updated_values.append("last_name = %s")
+                values.append(last_name)
+            if phone_number:
+                updated_values.append("phone_number = %s")
+                values.append(phone_number)
+            if address:
+                updated_values.append("address = %s")
+                values.append(address)
+            if postal_code:
+                updated_values.append("postal_code = %s")
+                values.append(postal_code)
+            if language_id:
+                updated_values.append("language_id = %s")
+                values.append(language_id)
+            if currency_id:
+                updated_values.append("currency_id = %s")
+                values.append(currency_id)
+            if city_id:
+                updated_values.append("city_id = %s")
+                values.append(city_id)
+            if profile_picture_id:
+                updated_values.append("profile_picture_id = %s")
+                values.append(profile_picture_id)
+            if translation_on is not None:
+                updated_values.append("translation_on = %s")
+                values.append(translation_on)
+            if vacation_mode is not None:
+                updated_values.append("vacation_mode = %s")
+                values.append(vacation_mode)
+
+            if not updated_values:
+                raise HTTPException(status_code=400, detail="No fields updated.")
+
+            values.append(user_id)
+
+            query = f"UPDATE users SET {', '.join(updated_values)} WHERE user_id = %s"
+            try:
+                cursor.execute(query, values)
+                updated_user = cursor.fetchone()
+                if not updated_user:
+                    raise HTTPException(status_code=404, detail="Couldn't find user.")
+                conn.commit()
+
+                return updated_user
+            except UniqueViolation:
+                conn.rollback()
+                raise HTTPException(
+                    status_code=409,
+                    detail="username, email or phone_number already exists.",
+                )
+            except ForeignKeyViolation:
+                conn.rollback()
+                raise HTTPException(
+                    status_code=400,
+                    detail="Invalid 'language_id', 'currency_id', 'city_id' or 'profile_picture_id'.",
+                )
+            except DataError:
+                conn.rollback()
+                raise HTTPException(status_code=400, detail="Invalid data format/type.")
