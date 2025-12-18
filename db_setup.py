@@ -171,7 +171,7 @@ def create_tables():
                             product_name VARCHAR(50) NOT NULL, 
                             title VARCHAR(20) NOT NULL,
                             description VARCHAR(500),
-                            starting_price INT NOT NULL,
+                            starting_price DECIMAL(10,2) NOT NULL,
                             view_count INT DEFAULT 1,
                             
                             pick_up_available BOOLEAN DEFAULT FALSE,

@@ -1,13 +1,11 @@
 import db
 import psycopg2
-from db_setup import get_connection as con
 from fastapi import FastAPI, HTTPException
 from psycopg2.errors import (
     DataError,
     ForeignKeyViolation,
     UniqueViolation,
 )
-from psycopg2.extras import RealDictCursor
 
 app = FastAPI()
 
@@ -586,9 +584,6 @@ def partial_update_user(
             translation_on,
             vacation_mode,
         )
-
-        if updated_user is None:
-            raise HTTPException(status_code=400, detail="No input was given.")
         if not updated_user:
             raise HTTPException(status_code=404, detail="Couldn't find user.")
 

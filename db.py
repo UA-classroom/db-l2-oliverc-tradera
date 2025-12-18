@@ -1,4 +1,3 @@
-import psycopg2
 from db_setup import get_connection as con
 from psycopg2.extras import RealDictCursor
 
@@ -134,7 +133,7 @@ def register_user(
                     city_id,
                     address,
                     postal_code,
-                    phone_number,
+                    phone_number
                 ),
             )
             new_user = cursor.fetchone()
@@ -553,7 +552,7 @@ def delete_order(order_id: int):
     with con() as conn:
         with conn.cursor(cursor_factory=RealDictCursor) as cursor:
             cursor.execute(
-                """
+                    """
                     DELETE FROM orders
                     WHERE order_id = %s
                     RETURNING order_id, order_number
